@@ -1,5 +1,4 @@
 import sensenova
-
 from langchain_openai import ChatOpenAI
 from langchain_openai.chat_models.base import *
 from langchain_openai.chat_models.base import (
@@ -7,7 +6,7 @@ from langchain_openai.chat_models.base import (
     _convert_delta_to_message_chunk,
     _is_pydantic_class
 )
-
+import os 
 _BM = TypeVar("_BM", bound=BaseModel)
 _DictOrPydanticClass = Union[Dict[str, Any], Type[_BM]]
 _DictOrPydantic = Union[Dict, _BM]
@@ -29,6 +28,8 @@ def _convert_dict_to_message(_dict: Mapping[str, Any]) -> BaseMessage:
         The LangChain message.
     """
     role = _dict.get("role")
+    if not role:
+        role = "assistant"
     name = _dict.get("name")
     id_ = _dict.get("id")
     if role == "user":
@@ -115,9 +116,9 @@ class ChatSense(BaseChatModel):
     @root_validator()
     @classmethod
     def validate_environment(cls, values: Dict) -> Dict:
-        if not values["sense_api_key_id"]:
+        if  values["sense_api_key_id"]:
             sensenova.access_key_id = values["sense_api_key_id"]
-        if not values["sense_api_key_secret"]:
+        if  values["sense_api_key_secret"]:
             sensenova.secret_access_key = values["sense_api_key_secret"]
         # 是否有对话历史
         if values["with_history"]:
@@ -535,3 +536,14 @@ if __name__ == "__main__":
     "Tell me a joke about cats, respond in JSON with `setup` and `punchline` keys"
 )
     print(res)
+    
+    # input image 
+    model = ChatSense(model="SenseChat-Vision",api_key_id=os.environ['SENSENOVA_ACCESS_KEY_ID'],api_key_secret=os.environ['SENSENOVA_SECRET_ACCESS_KEY'])
+    import pickle as pkl 
+    content = pkl.load(open(r"F:\projects\reports_llm\industry_report\消费\社会服务.pkl",'rb'))[0]['image']
+    model.invoke([HumanMessage(
+        content=[
+            {"type":"text","text":"描述这张图片"},
+            {"type":"image_base64","image_base64":content.decode()}
+        ]
+    )])
