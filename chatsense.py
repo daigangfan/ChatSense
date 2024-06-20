@@ -167,6 +167,22 @@ class ChatSense(BaseChatModel):
             )
             return generate_from_stream(stream_iter)
         message_dicts, params = self._create_message_dicts(messages, stop)
+        def format_image_message(message_dicts):
+            """将图片格式转换为商汤支持的模式"""
+            if self.model_name !='SenseChat-Vision':
+                return message_dicts
+            for message in message_dicts:
+                for submessage in message['content']:
+                    if submessage['type'] =='image_url':
+                        if isinstance(submessage['image_url'],dict):
+                            if submessage['image_url']['url'].startswith("data:image"):
+                                submessage['type'] = 'image_base64'
+                                submessage['image_base64'] = submessage['image_url']['url'].split(",")[1]
+                                submessage.pop('image_url')
+                            else:
+                                submessage['image_url'] = submessage['image_url']['url']
+            return message_dicts 
+        message_dicts = format_image_message(message_dicts)
         params = {**params, **kwargs}
         if self.with_history:
             session_id = self.client["session_id"]
@@ -540,10 +556,10 @@ if __name__ == "__main__":
     # input image 
     model = ChatSense(model="SenseChat-Vision",api_key_id=os.environ['SENSENOVA_ACCESS_KEY_ID'],api_key_secret=os.environ['SENSENOVA_SECRET_ACCESS_KEY'])
     import pickle as pkl 
-    content = pkl.load(open(r"F:\projects\reports_llm\industry_report\消费\社会服务.pkl",'rb'))[0]['image']
+    content = pkl.load(open(r"F:\projects\reports_llm\industry_report\消费\社会服务.pkl",'rb'))[0]['image'].decode()
     model.invoke([HumanMessage(
         content=[
             {"type":"text","text":"描述这张图片"},
-            {"type":"image_base64","image_base64":content.decode()}
+            {"type":"image_url","image_url": {"url": f"data:image/jpeg;base64,{content}"}}
         ]
     )])
